@@ -11,7 +11,7 @@ export async function GET() {
       {
         limits: {
           daily: process.env.AI_DAILY_LIMIT || '300(default)',
-          perIp: process.env.AI_DAILY_PER_IP || '20(default)',
+          perIp: process.env.AI_PER_IP_LIMIT || process.env.AI_DAILY_PER_IP || '50(default)',
         },
         usage,
       },
@@ -21,3 +21,4 @@ export async function GET() {
     { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } },
   );
 }
+

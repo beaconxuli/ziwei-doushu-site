@@ -20,7 +20,8 @@
 import { getStore } from '@netlify/blobs';
 
 const DAILY_LIMIT = Number(process.env.AI_DAILY_LIMIT || 300);
-const PER_IP_LIMIT = Number(process.env.AI_DAILY_PER_IP || 20);
+// 单 IP 每日上限：优先读 AI_PER_IP_LIMIT，兼容旧变量名 AI_DAILY_PER_IP
+const PER_IP_LIMIT = Number(process.env.AI_PER_IP_LIMIT || process.env.AI_DAILY_PER_IP || 50);
 const TIMEOUT_MS = Number(process.env.AI_QUOTA_TIMEOUT_MS || 1500);
 
 /** 本实例发现 Blobs 不可用后就不再尝试 */
@@ -103,3 +104,4 @@ export async function quotaUsage(): Promise<{ day: string; total: number; ok: bo
     return { day, total: 0, ok: false, error: String((err as Error)?.message || err) };
   }
 }
+
