@@ -195,6 +195,7 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua }: I
   const lastPalaceBranch = useRef<number | undefined>(undefined);
   const lastSiHuaKey = useRef<string | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null); // 切换主题时中断上一条流
 
   // Keep refs in sync
   useEffect(() => { messagesRef.current = messages; }, [messages]);
@@ -277,11 +278,16 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
   }, [selectedSiHua]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const streamResponse = async (apiMessages: { role: 'user' | 'assistant'; content: string }[], topicLabel = '命格') => {
+    let ac: AbortController | null = null;
     try {
+      abortRef.current?.abort();
+      ac = new AbortController();
+      abortRef.current = ac;
       const res = await fetch('/api/interpret', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chart, messages: apiMessages }),
+        signal: ac.signal,
       });
       if (res.status === 404) throw new Error('api-missing');
       if (!res.ok) {
@@ -321,6 +327,7 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
         }
       }
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return; // 切换主题导致的中断，不提示
       const msg = e instanceof Error ? e.message : '';
       const missing = msg === 'api-missing';
       const content = missing
@@ -330,8 +337,12 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
           : '解读失败，请稍后重试。';
       setMessages(prev => [...prev, { role: 'assistant', content, topic: topicLabel }]);
     } finally {
-      setLoading(false);
-      loadingRef.current = false;
+      // 只有当自己仍是「当前流」时才复位 loading，避免切换主题时旧流把新流状态清掉
+      if (abortRef.current === ac) {
+        abortRef.current = null;
+        setLoading(false);
+        loadingRef.current = false;
+      }
     }
   };
 
@@ -354,7 +365,12 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
   };
 
   const handleTopicClick = (topicKey: string) => {
-    if (loadingRef.current) return;
+    if (loadingRef.current) {
+      // 用户想马上切换：中断上一条流，立刻开始新主题（而不是静默忽略点击）
+      abortRef.current?.abort();
+      loadingRef.current = false;
+      setLoading(false);
+    }
     setActiveTopic(topicKey);
     const label = TOPICS.find(t => t.key === topicKey)?.label ?? '命格';
     sendMessage(TOPIC_PROMPTS[topicKey], true, label);
@@ -493,5 +509,8 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
     </div>
   );
 }
+
+
+
 
 
