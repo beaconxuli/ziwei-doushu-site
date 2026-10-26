@@ -358,7 +358,12 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
       content: m.content,
     }));
 
-    setMessages(prev => [...prev, userMsg]);
+    // 开新请求前，清掉被中断留下的空占位气泡，避免界面上出现空的「命格解读」
+    setMessages(prev => {
+      const cleaned = [...prev];
+      while (cleaned.length && cleaned[cleaned.length - 1].role === 'assistant' && !cleaned[cleaned.length - 1].content) cleaned.pop();
+      return [...cleaned, userMsg];
+    });
     setInput('');
     setLoadingTopic(topicLabel);
     streamResponse(apiMessages, topicLabel);
@@ -509,6 +514,7 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
     </div>
   );
 }
+
 
 
 
