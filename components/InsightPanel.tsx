@@ -8,6 +8,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   hidden?: boolean; // don't show user bubble for auto/topic messages
+  topic?: string;   // 该条回答属于哪个主题（命格/感情/事业/财运…），用于标题与加载提示
 }
 
 interface SelectedSiHua {
@@ -187,6 +188,7 @@ export default function InsightPanel({ chart, selectedPalace, selectedSiHua }: I
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTopic, setActiveTopic] = useState<string>('overview');
+  const [loadingTopic, setLoadingTopic] = useState('命格');
   const messagesRef = useRef<Message[]>([]); // always-current copy for closures
   const loadingRef = useRef(false);
   const autoLoaded = useRef(false);
@@ -274,7 +276,7 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
     sendMessage(prompt, true);
   }, [selectedSiHua]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const streamResponse = async (apiMessages: { role: 'user' | 'assistant'; content: string }[]) => {
+  const streamResponse = async (apiMessages: { role: 'user' | 'assistant'; content: string }[], topicLabel = '命格') => {
     try {
       const res = await fetch('/api/interpret', {
         method: 'POST',
@@ -297,7 +299,7 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
       const decoder = new TextDecoder();
       let assistantText = '';
 
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: '', topic: topicLabel }]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -326,14 +328,14 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
         : msg && msg !== '请求失败'
           ? msg
           : '解读失败，请稍后重试。';
-      setMessages(prev => [...prev, { role: 'assistant', content }]);
+      setMessages(prev => [...prev, { role: 'assistant', content, topic: topicLabel }]);
     } finally {
       setLoading(false);
       loadingRef.current = false;
     }
   };
 
-  const sendMessage = (text: string, hidden = false) => {
+  const sendMessage = (text: string, hidden = false, topicLabel = '命格') => {
     if (!text.trim() || loadingRef.current) return;
     loadingRef.current = true;
     setLoading(true);
@@ -347,13 +349,15 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
-    streamResponse(apiMessages);
+    setLoadingTopic(topicLabel);
+    streamResponse(apiMessages, topicLabel);
   };
 
   const handleTopicClick = (topicKey: string) => {
     if (loadingRef.current) return;
     setActiveTopic(topicKey);
-    sendMessage(TOPIC_PROMPTS[topicKey], true);
+    const label = TOPICS.find(t => t.key === topicKey)?.label ?? '命格';
+    sendMessage(TOPIC_PROMPTS[topicKey], true, label);
   };
 
   const handleSend = () => {
@@ -437,13 +441,21 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
                   style={{ color: 'var(--t-faint)' }}
                 >
                   <span style={{ color: 'var(--t-gold)', opacity: 0.4 }}>✦</span>
-                  命理解读
+                  {(msg.topic ?? '命格')}解读
                 </div>
                 <AiContent text={msg.content} streaming={loading && isLastMsg} />
               </motion.div>
             );
           })}
         </AnimatePresence>
+
+        {/* 生成中提示：点主题后立刻可见，避免「点了没反应」 */}
+        {loading && messages.length > 0 && (
+          <div className="flex items-center gap-2 pt-1 text-[10px] animate-pulse" style={{ color: 'var(--t-gold)' }}>
+            <span>✦</span>
+            <span>正在生成「{loadingTopic}」解读…（通常 5–15 秒）</span>
+          </div>
+        )}
       </div>
 
       {/* ── Input ── */}
@@ -481,3 +493,5 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
     </div>
   );
 }
+
+
