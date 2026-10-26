@@ -18,8 +18,8 @@ export async function GET() {
     const store = getStore({ name: 'ai-quota', consistency: 'strong' });
     const key = `probe:${new Date().toISOString()}`;
     await store.set(key, 'ok');
-    const v = await store.get(key);
-    out.blobs = { ok: v === 'ok', ms: Date.now() - t0 };
+    const v = await store.get(key, { type: 'text' });
+    out.blobs = { ok: v === 'ok', value: v, ms: Date.now() - t0 };
   } catch (err) {
     out.blobs = { ok: false, ms: Date.now() - t0, error: String((err as Error)?.message || err) };
   }
