@@ -17,32 +17,27 @@ async function probe(name: string, fn: () => Promise<unknown>) {
 }
 
 /**
- * 只读诊断：Blobs 各调用路径的耗时（不含密钥）。
- * 用来判断额度计数能不能安全地用 Blobs 实现。
+ * 只读诊断：验证「list 是否能替代 get 判断键是否存在」。
+ * 背景：这个运行时里 get 一个不存在的键会挂起（30s），而 set + get 存在的键只要 60ms。
  */
 export async function GET() {
-  const day = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
   const results = [];
-  results.push(await probe('default.get-missing', async () => {
-    const s = getStore({ name: 'ai-quota' });
-    return await s.get(`probe-missing-${Date.now()}`, { type: 'text' });
-  }));
-  results.push(await probe('strong.get-missing', async () => {
+  results.push(await probe('list-empty-prefix', async () => {
     const s = getStore({ name: 'ai-quota', consistency: 'strong' });
-    return await s.get(`probe-missing-${Date.now()}`, { type: 'text' });
+    const r = await s.list({ prefix: `zzz-none-${Date.now()}` });
+    return { blobs: r.blobs.length };
   }));
-  results.push(await probe('strong.set+get', async () => {
+  results.push(await probe('list-existing-prefix', async () => {
     const s = getStore({ name: 'ai-quota', consistency: 'strong' });
-    const k = `probe-${Date.now()}`;
-    await s.set(k, 'ok');
-    return await s.get(k, { type: 'text' });
+    const r = await s.list({ prefix: 'probe' });
+    return { blobs: r.blobs.length, keys: r.blobs.map((b) => b.key).slice(0, 3) };
   }));
-  results.push(await probe('strong.get-total', async () => {
+  results.push(await probe('set-only', async () => {
     const s = getStore({ name: 'ai-quota', consistency: 'strong' });
-    return await s.get(`total:${day}`, { type: 'text' });
+    await s.set(`probe-setonly-${Date.now()}`, '1');
+    return 'ok';
   }));
-
-  return new Response(JSON.stringify({ day, hasBlobsContext: Boolean(process.env.NETLIFY_BLOBS_CONTEXT), results }, null, 2), {
+  return new Response(JSON.stringify({ results }, null, 2), {
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
   });
 }
