@@ -64,6 +64,8 @@ export default function HemingPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [question, setQuestion] = useState('');
   const [analysisError, setAnalysisError] = useState(false);
+  // 服务端返回的具体错误（额度用尽 / 限流 / 未配置 Key），优先展示给用户
+  const [errorMsg, setErrorMsg] = useState('');
   // 开源版不含 /api/heming：接口 404 时单独说明，而不是让用户反复重试
   const [apiMissing, setApiMissing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -118,7 +120,12 @@ export default function HemingPage() {
         body: JSON.stringify({ chartA: cA, chartB: cB, question: q ?? undefined }),
       });
       if (res.status === 404) { setApiMissing(true); throw new Error('api-missing'); }
-      if (!res.ok || !res.body) throw new Error();
+      if (!res.ok || !res.body) {
+        let serverMsg = '';
+        try { const j = await res.json(); if (j && typeof j.error === 'string') serverMsg = j.error; } catch { /* 非 JSON */ }
+        setErrorMsg(serverMsg);
+        throw new Error(serverMsg || '请求失败');
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -141,7 +148,8 @@ export default function HemingPage() {
       }
       // scroll to analysis
       setTimeout(() => analysisRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-    } catch {
+    } catch (e) {
+      if (!(e instanceof Error)) setErrorMsg('');
       setAnalysisError(true);
     } finally {
       setAnalyzing(false);
@@ -286,7 +294,7 @@ export default function HemingPage() {
             <div style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--bdr)', background: 'var(--bg-card)', fontSize: '13px', color: 'var(--tx-2)', marginTop: '12px' }}>
               {apiMissing
                 ? '开源版不含合盘 AI 分析接口（/api/heming），需要你自己实现后才能用。两人的命盘可以分别到「排盘」页（/chart）查看。'
-                : '分析暂时不可用，请重试。'}
+                : errorMsg || '分析暂时不可用，请重试。'}
             </div>
           )}
         </div>
@@ -367,3 +375,4 @@ export default function HemingPage() {
     </div>
   );
 }
+

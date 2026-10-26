@@ -48,7 +48,15 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
       });
 
       if (res.status === 404) throw new Error('api-missing');
-      if (!res.ok) throw new Error('请求失败');
+      if (!res.ok) {
+        // 服务端返回 { error: '…' }（额度用尽 / 限流 / 未配置 Key），透传给用户
+        let serverMsg = '';
+        try {
+          const j = await res.json();
+          if (j && typeof j.error === 'string') serverMsg = j.error;
+        } catch { /* 非 JSON，忽略 */ }
+        throw new Error(serverMsg || '请求失败');
+      }
       if (!res.body) throw new Error('无响应流');
 
       const reader = res.body.getReader();
@@ -80,10 +88,15 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
         }
       }
     } catch (e) {
-      const missing = e instanceof Error && e.message === 'api-missing';
+      const msg = e instanceof Error ? e.message : '';
+      const missing = msg === 'api-missing';
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: missing ? '开源版不含 AI 解读接口（/api/interpret），需要你自己实现后才能用，详见 README「快速开始」。排盘本身不需要任何 API Key。' : '解读失败，请检查API配置或稍后重试。',
+        content: missing
+          ? '开源版不含 AI 解读接口（/api/interpret），需要你自己实现后才能用，详见 README「快速开始」。排盘本身不需要任何 API Key。'
+          : msg && msg !== '请求失败'
+            ? msg
+            : '解读失败，请检查API配置或稍后重试。',
       }]);
     } finally {
       setLoading(false);
