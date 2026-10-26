@@ -1,0 +1,15 @@
+# Netlify 配置（紫微斗数站）
+#
+# Next.js 16 在 Netlify 上是零配置：平台会自动挂 OpenNext 适配器。
+# 这里只声明构建命令与发布目录，避免 CLI 误判。
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# 说明：/api/interpret 与 /api/heming 是 SSE 流式接口，
+# OpenNext 适配器会把它们转成 Netlify Functions，无需额外配置。
+
+

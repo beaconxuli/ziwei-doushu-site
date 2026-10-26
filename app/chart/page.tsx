@@ -1,10 +1,11 @@
 'use client';
-import { useState } from 'react';
-import BirthForm from '@/components/BirthForm';
+import { useEffect, useState } from 'react';
+import BirthForm, { type BirthFormState } from '@/components/BirthForm';
 import ChartBoard from '@/components/ChartBoard';
 import InsightPanel from '@/components/InsightPanel';
 import TimeNav, { type TimeView } from '@/components/TimeNav';
 import { generateChart } from '@/lib/ziwei/algorithm';
+import { formToBirthInfo, searchParamsToForm } from '@/lib/ziwei/share';
 import type { BirthInfo, ZiweiChart, Palace } from '@/lib/ziwei/types';
 
 /**
@@ -22,6 +23,13 @@ export default function ChartPage() {
   const [selectedPalace, setSelectedPalace] = useState<Palace | null>(null);
   const [view, setView] = useState<TimeView>('mingpan');
   const [liunianYear, setLiunianYear] = useState(() => new Date().getFullYear());
+
+  // 本地演示补充：支持 /chart?y=1990&m=6&d=15&h=14&mi=30&p=北京市&c=北京市&lo=116.4&g=m 直接出盘
+  // （复用 lib/ziwei/share.ts 已有的分享参数编解码，方便分享链接/自动化截图）
+  useEffect(() => {
+    const partial = searchParamsToForm(new URLSearchParams(window.location.search));
+    if (partial) setChart(generateChart(formToBirthInfo(partial as BirthFormState)));
+  }, []);
 
   // ── 未起盘：展示出生信息表单 ──
   if (!chart) {

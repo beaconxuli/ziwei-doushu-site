@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.github
+.env.local
+.env*.local
+dataset
+tsconfig.tsbuildinfo
+*.zip
+*.tar.gz
+*.png
