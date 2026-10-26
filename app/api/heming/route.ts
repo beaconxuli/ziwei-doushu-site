@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import type { ZiweiChart } from '@/lib/ziwei/types';
 import { buildChartContext, HEMING_SYSTEM_PROMPT } from '@/lib/ai/chart-context';
 import { resolveProvider, toAppSse, rateLimit } from '@/lib/ai/provider';
+import { consumeQuota } from '@/lib/ai/quota';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,17 @@ export async function POST(req: NextRequest) {
     req.headers.get('x-real-ip') ||
     'local';
   if (!rateLimit(ip)) return json(429, { error: '请求太频繁，请稍后再试' });
+
+  const quota = await consumeQuota(ip);
+  if (!quota.ok) {
+    return json(429, {
+      error:
+        quota.reason === 'ip'
+          ? '今天的个人合盘次数用完了，明天再来（每日约 20 次）'
+          : '今天的合盘名额已用完，明天再来',
+      quota: { reason: quota.reason, used: quota.used, limit: quota.limit },
+    });
+  }
 
   let body: Body;
   try {
