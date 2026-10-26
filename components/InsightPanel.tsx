@@ -320,7 +320,7 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
             assistantText += delta;
             setMessages(prev => {
               const updated = [...prev];
-              updated[updated.length - 1] = { role: 'assistant', content: assistantText };
+              updated[updated.length - 1] = { ...updated[updated.length - 1], content: assistantText };
               return updated;
             });
           } catch { /* skip */ }
@@ -513,6 +513,7 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
     </div>
   );
 }
+
 
 
 
