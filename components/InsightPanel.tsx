@@ -397,7 +397,6 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
               <button
                 key={t.key}
                 onClick={() => handleTopicClick(t.key)}
-                disabled={loading}
                 className="py-1.5 text-[10px] font-medium rounded-lg transition-all duration-150 disabled:opacity-40"
                 style={{
                   background: isActive ? 'rgba(212,168,67,0.12)' : 'transparent',
@@ -514,6 +513,7 @@ ${selectedSiHua.starName}化${selectedSiHua.siHua}落在【${palaceName}】，�
     </div>
   );
 }
+
 
 
 
